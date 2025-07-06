@@ -7,15 +7,14 @@ import (
 	"strings"
 )
 
-type reqData struct {
-	Body string `json:"body"`
-}
-
-type returnVal struct {
-	CleanedBody string `json:"cleaned_body"`
-}
-
 func handleValidateChirp(w http.ResponseWriter, req *http.Request) {
+	type reqData struct {
+		Body string `json:"body"`
+	}
+
+	type returnVal struct {
+		CleanedBody string `json:"cleaned_body"`
+	}
 	decoder := json.NewDecoder(req.Body)
 	params := reqData{}
 	err := decoder.Decode(&params)

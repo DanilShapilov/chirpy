@@ -24,10 +24,3 @@ func (cfg *apiConfig) handleMetrics(w http.ResponseWriter, req *http.Request) {
 </html>`
 	w.Write([]byte(fmt.Sprintf(tmp, hits)))
 }
-
-func (cfg *apiConfig) handleMetricsReset(w http.ResponseWriter, req *http.Request) {
-	w.Header().Add("Content-Type", "text/plain; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-	cfg.fileserverHits.Store(0)
-	w.Write([]byte("Metrics reset successfully"))
-}

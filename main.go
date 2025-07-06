@@ -15,6 +15,7 @@ import (
 type apiConfig struct {
 	fileserverHits atomic.Int32
 	db             *database.Queries
+	platform       string
 }
 
 func main() {
@@ -22,6 +23,10 @@ func main() {
 	dbURL := os.Getenv("DB_URL")
 	if dbURL == "" {
 		log.Fatal("DB_URL must be set")
+	}
+	platform := os.Getenv("PLATFORM")
+	if platform == "" {
+		log.Fatal("PLATFORM must be set")
 	}
 
 	dbConn, err := sql.Open("postgres", dbURL)
@@ -33,19 +38,22 @@ func main() {
 	const filepathRoot = "."
 	const port = "8080"
 
-	apiCfg := apiConfig{
+	cfg := apiConfig{
 		fileserverHits: atomic.Int32{},
 		db:             dbQueries,
+		platform:       platform,
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle("/app/", apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot)))))
+	mux.Handle("/app/", cfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot)))))
 
 	mux.HandleFunc("GET /api/healthz", handleReadiness)
 	mux.HandleFunc("POST /api/validate_chirp", handleValidateChirp)
 
-	mux.HandleFunc("GET /admin/metrics", apiCfg.handleMetrics)
-	mux.HandleFunc("POST /admin/reset", apiCfg.handleMetricsReset)
+	mux.HandleFunc("GET /admin/metrics", cfg.handleMetrics)
+	mux.HandleFunc("POST /admin/reset", cfg.handleReset)
+
+	mux.HandleFunc("POST /api/users", cfg.handlerUsersCreate)
 
 	server := &http.Server{
 		Addr:    ":" + port,

@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/DanilShapilov/chirpy/internal/auth"
+	"github.com/DanilShapilov/chirpy/internal/database"
 	"github.com/google/uuid"
 )
 
@@ -14,11 +16,13 @@ type User struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Email     string    `json:"email"`
+	Password  string    `json:"-"`
 }
 
 func (cfg *apiConfig) handlerUsersCreate(w http.ResponseWriter, req *http.Request) {
 	type reqData struct {
-		Email string `json:"email"`
+		Password string `json:"password"`
+		Email    string `json:"email"`
 	}
 
 	decoder := json.NewDecoder(req.Body)
@@ -35,8 +39,21 @@ func (cfg *apiConfig) handlerUsersCreate(w http.ResponseWriter, req *http.Reques
 		respondWithError(w, http.StatusBadRequest, "Email couldn't be empty", nil)
 		return
 	}
+	if len(params.Password) == 0 {
+		respondWithError(w, http.StatusBadRequest, "Password couldn't be empty", nil)
+		return
+	}
 
-	user, err := cfg.db.CreateUser(req.Context(), params.Email)
+	hashedPassword, err := auth.HashPassword(params.Password)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error(), err)
+	}
+
+	user, err := cfg.db.CreateUser(req.Context(), database.CreateUserParams{
+		Email:          params.Email,
+		HashedPassword: hashedPassword,
+	})
+
 	if err != nil {
 		log.Printf("Error creating user: %s", err)
 		return

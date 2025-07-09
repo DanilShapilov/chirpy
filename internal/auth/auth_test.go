@@ -2,6 +2,9 @@ package auth
 
 import (
 	"testing"
+	"time"
+
+	"github.com/google/uuid"
 )
 
 func TestPasswordHashAndCheck(t *testing.T) {
@@ -53,6 +56,68 @@ func TestPasswordHashAndCheck(t *testing.T) {
 			err := CheckPasswordHash(tt.password, tt.hash)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CheckPasswordHash() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestJWTs(t *testing.T) {
+	userID := uuid.New()
+	root_secret := "MySecret"
+
+	tests := []struct {
+		name          string
+		secret        string
+		expiresIn     time.Duration
+		wantErr       bool
+		malformJWTStr bool
+	}{
+		{
+			name:          "Valid",
+			secret:        root_secret,
+			expiresIn:     time.Second * 10,
+			wantErr:       false,
+			malformJWTStr: false,
+		},
+		{
+			name:          "Expired",
+			secret:        root_secret,
+			expiresIn:     time.Minute * -10,
+			wantErr:       true,
+			malformJWTStr: false,
+		},
+		{
+			name:          "Secret doesn't match",
+			secret:        "different secret",
+			expiresIn:     time.Second * 10,
+			wantErr:       true,
+			malformJWTStr: false,
+		},
+		{
+			name:          "Malformed JWTStr",
+			secret:        root_secret,
+			expiresIn:     time.Second * 10,
+			wantErr:       true,
+			malformJWTStr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			jwtStr, err := MakeJWT(userID, root_secret, tt.expiresIn)
+			if err != nil {
+				t.Errorf("MakeJWT() error = %v", err)
+				return
+			}
+			if tt.malformJWTStr {
+				jwtStr = "malformed.jwt.string"
+			}
+			userIDFromJWT, err := ValidateJWT(jwtStr, tt.secret)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateJWT() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err == nil && userIDFromJWT != userID {
+				t.Errorf("userID not match %v != %v", userIDFromJWT, userID)
 			}
 		})
 	}

@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"net/http"
 	"testing"
 	"time"
 
@@ -121,4 +122,74 @@ func TestJWTs(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetBearerToken(t *testing.T) {
+	const headerKey = "Authorization"
+	userID := uuid.New()
+	root_secret := "MySecret"
+
+	jwtStr, err := MakeJWT(userID, root_secret, time.Hour*10)
+	if err != nil {
+		t.Errorf("MakeJWT() error = %v", err)
+		return
+	}
+
+	type headers struct {
+		key   string
+		value string
+	}
+
+	tests := []struct {
+		name    string
+		headers headers
+		wantErr bool
+	}{
+		{
+			name: "Valid auth header",
+			headers: headers{
+				key:   headerKey,
+				value: "Bearer " + jwtStr,
+			},
+			wantErr: false,
+		},
+		{
+			name:    "Empty auth header",
+			headers: headers{},
+			wantErr: true,
+		},
+		{
+			name: "Invalid auth header length",
+			headers: headers{
+				key:   headerKey,
+				value: "Bearer " + jwtStr + " asdfasf",
+			},
+			wantErr: true,
+		},
+		{
+			name: "Invalid format (excludes 'Bearer ')",
+			headers: headers{
+				key:   headerKey,
+				value: jwtStr + " slice_length_is_2",
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			headers := http.Header{}
+			headers.Add(tt.headers.key, tt.headers.value)
+
+			token, err := GetBearerToken(headers)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetBearerToken() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err == nil && jwtStr != token {
+				t.Errorf("token not match %v != %v", jwtStr, token)
+			}
+		})
+	}
+
 }

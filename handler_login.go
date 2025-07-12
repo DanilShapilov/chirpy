@@ -4,14 +4,16 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/DanilShapilov/chirpy/internal/auth"
 )
 
 func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, req *http.Request) {
 	type reqData struct {
-		Password string `json:"password"`
-		Email    string `json:"email"`
+		Password         string `json:"password"`
+		Email            string `json:"email"`
+		ExpiresInSeconds *int   `json:"expires_in_seconds,omitempty"`
 	}
 	type response struct {
 		User
@@ -25,6 +27,10 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, req *http.Request) {
 		log.Printf("Error decoding parameters: %s", err)
 		respondWithError(w, http.StatusInternalServerError, "Couldn't decode parameters", err)
 		return
+	}
+	hourInSeconds := 60 * 60
+	if params.ExpiresInSeconds == nil || *params.ExpiresInSeconds > hourInSeconds {
+		params.ExpiresInSeconds = &hourInSeconds
 	}
 
 	user, err := cfg.db.GetUserByEmail(req.Context(), params.Email)
@@ -46,6 +52,20 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, req *http.Request) {
 		)
 		return
 	}
+	token, err := auth.MakeJWT(
+		user.ID,
+		cfg.jwtSecret,
+		time.Second*time.Duration(*params.ExpiresInSeconds),
+	)
+	if err != nil {
+		respondWithError(
+			w,
+			http.StatusInternalServerError,
+			"Couldn't generate token",
+			err,
+		)
+		return
+	}
 
 	respondWithJSON(w, http.StatusOK, response{
 		User: User{
@@ -53,6 +73,7 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, req *http.Request) {
 			Email:     user.Email,
 			CreatedAt: user.CreatedAt,
 			UpdatedAt: user.UpdatedAt,
+			Token:     token,
 		},
 	})
 }

@@ -142,35 +142,32 @@ func TestGetBearerToken(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		headers headers
+		headers http.Header
 		wantErr bool
 	}{
 		{
 			name: "Valid auth header",
-			headers: headers{
-				key:   headerKey,
-				value: "Bearer " + jwtStr,
+			headers: http.Header{
+				headerKey: []string{"Bearer " + jwtStr},
 			},
 			wantErr: false,
 		},
 		{
 			name:    "Empty auth header",
-			headers: headers{},
+			headers: http.Header{},
 			wantErr: true,
 		},
 		{
 			name: "Invalid auth header length",
-			headers: headers{
-				key:   headerKey,
-				value: "Bearer " + jwtStr + " asdfasf",
+			headers: http.Header{
+				headerKey: []string{"Bearer " + jwtStr + " asdfasf"},
 			},
 			wantErr: true,
 		},
 		{
 			name: "Invalid format (excludes 'Bearer ')",
-			headers: headers{
-				key:   headerKey,
-				value: jwtStr + " slice_length_is_2",
+			headers: http.Header{
+				headerKey: []string{jwtStr + " slice_length_is_2"},
 			},
 			wantErr: true,
 		},
@@ -178,16 +175,13 @@ func TestGetBearerToken(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			headers := http.Header{}
-			headers.Add(tt.headers.key, tt.headers.value)
-
-			token, err := GetBearerToken(headers)
+			token, err := GetBearerToken(tt.headers)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetBearerToken() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err == nil && jwtStr != token {
-				t.Errorf("token not match %v != %v", jwtStr, token)
+				t.Errorf("GetBearerToken() token not match %v != %v", jwtStr, token)
 			}
 		})
 	}

@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -14,6 +15,8 @@ import (
 type TokenType string
 
 const TokenTypeAccess TokenType = "chirpy-access"
+
+var ErrNoAuthHeaderIncluded = errors.New("no auth header included in request")
 
 func HashPassword(password string) (string, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -74,15 +77,11 @@ func ValidateJWT(tokenString, tokenSecret string) (uuid.UUID, error) {
 func GetBearerToken(headers http.Header) (string, error) {
 	authHeader := strings.TrimSpace(headers.Get("Authorization"))
 	if authHeader == "" {
-		return "", fmt.Errorf("no auth token in request headers")
+		return "", ErrNoAuthHeaderIncluded
 	}
 	authHeaderSlice := strings.Split(authHeader, " ")
-	if len(authHeaderSlice) != 2 {
-		return "", fmt.Errorf("unexpected token format")
+	if len(authHeaderSlice) != 2 || authHeaderSlice[0] != "Bearer" {
+		return "", fmt.Errorf("malformed authorization header")
 	}
-	if authHeaderSlice[0] != "Bearer" {
-		return "", fmt.Errorf("unexpected token format")
-	}
-	token := authHeaderSlice[len(authHeaderSlice)-1]
-	return token, nil
+	return authHeaderSlice[1], nil
 }

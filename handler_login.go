@@ -17,6 +17,8 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, req *http.Request) {
 	}
 	type response struct {
 		User
+		Token        string `json:"token"`
+		RefreshToken string `json:"refresh_token"`
 	}
 
 	decoder := json.NewDecoder(req.Body)
@@ -27,10 +29,6 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, req *http.Request) {
 		log.Printf("Error decoding parameters: %s", err)
 		respondWithError(w, http.StatusInternalServerError, "Couldn't decode parameters", err)
 		return
-	}
-	hourInSeconds := 60 * 60
-	if params.ExpiresInSeconds == nil || *params.ExpiresInSeconds > hourInSeconds {
-		params.ExpiresInSeconds = &hourInSeconds
 	}
 
 	user, err := cfg.db.GetUserByEmail(req.Context(), params.Email)
@@ -52,16 +50,22 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, req *http.Request) {
 		)
 		return
 	}
-	token, err := auth.MakeJWT(
+
+	expirationTime := time.Hour
+	if *params.ExpiresInSeconds > 0 && *params.ExpiresInSeconds < 3600 {
+		expirationTime = time.Duration(*params.ExpiresInSeconds) * time.Second
+	}
+
+	accessToken, err := auth.MakeJWT(
 		user.ID,
 		cfg.jwtSecret,
-		time.Second*time.Duration(*params.ExpiresInSeconds),
+		expirationTime,
 	)
 	if err != nil {
 		respondWithError(
 			w,
 			http.StatusInternalServerError,
-			"Couldn't generate token",
+			"Couldn't create access JWT",
 			err,
 		)
 		return
@@ -73,7 +77,7 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, req *http.Request) {
 			Email:     user.Email,
 			CreatedAt: user.CreatedAt,
 			UpdatedAt: user.UpdatedAt,
-			Token:     token,
 		},
+		Token: accessToken,
 	})
 }

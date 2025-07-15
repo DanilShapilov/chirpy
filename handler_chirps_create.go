@@ -31,7 +31,7 @@ func (cfg *apiConfig) handlerChirpsCreate(w http.ResponseWriter, req *http.Reque
 		respondWithError(
 			w,
 			http.StatusUnauthorized,
-			err.Error(),
+			"Couldn't find JWT",
 			err,
 		)
 		return
@@ -42,7 +42,7 @@ func (cfg *apiConfig) handlerChirpsCreate(w http.ResponseWriter, req *http.Reque
 		respondWithError(
 			w,
 			http.StatusUnauthorized,
-			err.Error(),
+			"Couldn't validate JWT",
 			err,
 		)
 		return

@@ -52,7 +52,7 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, req *http.Request) {
 	}
 
 	expirationTime := time.Hour
-	if *params.ExpiresInSeconds > 0 && *params.ExpiresInSeconds < 3600 {
+	if params.ExpiresInSeconds != nil && *params.ExpiresInSeconds > 0 && *params.ExpiresInSeconds < 3600 {
 		expirationTime = time.Duration(*params.ExpiresInSeconds) * time.Second
 	}
 

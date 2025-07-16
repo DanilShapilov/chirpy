@@ -3,11 +3,25 @@ package main
 import (
 	"net/http"
 
+	"github.com/DanilShapilov/chirpy/internal/database"
 	"github.com/google/uuid"
 )
 
 func (cfg *apiConfig) handlerChirpsList(w http.ResponseWriter, req *http.Request) {
-	chirps, err := cfg.db.GetChirps(req.Context())
+	authorId := req.URL.Query().Get("author_id")
+	var chirps []database.Chirp
+	var err error
+	var authorUUID uuid.UUID
+	if authorId != "" {
+		authorUUID, err = uuid.Parse(authorId)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, "Incorrect format of author_id", err)
+			return
+		}
+		chirps, err = cfg.db.GetChirpsByAuthor(req.Context(), authorUUID)
+	} else {
+		chirps, err = cfg.db.GetChirps(req.Context())
+	}
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Couldn't get chirps from db", err)
 		return

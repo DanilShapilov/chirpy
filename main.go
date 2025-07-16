@@ -54,14 +54,6 @@ func main() {
 	mux.Handle("/app/", cfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot)))))
 
 	mux.HandleFunc("GET /api/healthz", handleReadiness)
-	// mux.HandleFunc("GET /api/tmp", func(w http.ResponseWriter, r *http.Request) {
-	// 	token, err := auth.MakeRefreshToken()
-	// 	if err != nil {
-	// 		respondWithError(w, http.StatusInternalServerError, "Couldn't make refresh token", err)
-	// 	}
-
-	// 	fmt.Printf("auth.MakeRefreshToken() string = %v, err = %v\n", token, err)
-	// })
 
 	mux.HandleFunc("GET /admin/metrics", cfg.handleMetrics)
 	mux.HandleFunc("POST /admin/reset", cfg.handleReset)
@@ -71,6 +63,7 @@ func main() {
 	mux.HandleFunc("POST /api/revoke", cfg.handlerRevoke)
 
 	mux.HandleFunc("POST /api/users", cfg.handlerUsersCreate)
+	mux.HandleFunc("PUT /api/users", cfg.handlerUsersUpdate)
 
 	mux.HandleFunc("GET /api/chirps", cfg.handlerChirpsList)
 	mux.HandleFunc("GET /api/chirps/{chirpID}", cfg.handlerChirpsGet)

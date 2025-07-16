@@ -4,22 +4,12 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/DanilShapilov/chirpy/internal/auth"
 	"github.com/DanilShapilov/chirpy/internal/database"
-	"github.com/google/uuid"
 )
 
-type User struct {
-	ID        uuid.UUID `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Email     string    `json:"email"`
-	Password  string    `json:"-"`
-}
-
-func (cfg *apiConfig) handlerUsersCreate(w http.ResponseWriter, req *http.Request) {
+func (cfg *apiConfig) handlerUsersUpdate(w http.ResponseWriter, req *http.Request) {
 	type reqData struct {
 		Password string `json:"password"`
 		Email    string `json:"email"`
@@ -28,9 +18,31 @@ func (cfg *apiConfig) handlerUsersCreate(w http.ResponseWriter, req *http.Reques
 		User
 	}
 
+	token, err := auth.GetBearerToken(req.Header)
+	if err != nil {
+		respondWithError(
+			w,
+			http.StatusUnauthorized,
+			"Couldn't find JWT",
+			err,
+		)
+		return
+	}
+
+	userID, err := auth.ValidateJWT(token, cfg.jwtSecret)
+	if err != nil {
+		respondWithError(
+			w,
+			http.StatusUnauthorized,
+			"Couldn't validate JWT",
+			err,
+		)
+		return
+	}
+
 	decoder := json.NewDecoder(req.Body)
 	params := reqData{}
-	err := decoder.Decode(&params)
+	err = decoder.Decode(&params)
 
 	if err != nil {
 		log.Printf("Error decoding parameters: %s", err)
@@ -52,15 +64,17 @@ func (cfg *apiConfig) handlerUsersCreate(w http.ResponseWriter, req *http.Reques
 		respondWithError(w, http.StatusInternalServerError, err.Error(), err)
 	}
 
-	user, err := cfg.db.CreateUser(req.Context(), database.CreateUserParams{
+	user, err := cfg.db.UpdateUser(req.Context(), database.UpdateUserParams{
+		ID:             userID,
 		Email:          params.Email,
 		HashedPassword: hashedPassword,
 	})
 
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Error creating user: %s", err)
+		respondWithError(w, http.StatusInternalServerError, "Couldn't update user: %s", err)
 		return
 	}
+
 	respondWithJSON(w, http.StatusCreated, response{
 		User: User{
 			ID:        user.ID,

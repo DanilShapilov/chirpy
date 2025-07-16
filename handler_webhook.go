@@ -7,12 +7,23 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/DanilShapilov/chirpy/internal/auth"
 	"github.com/google/uuid"
 )
 
 const EventUserUpgraded = "user.upgraded"
 
 func (cfg *apiConfig) handlerWebhook(w http.ResponseWriter, req *http.Request) {
+	apiToken, err := auth.GetAPIToken(req.Header)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, err.Error(), err)
+		return
+	}
+	if apiToken != cfg.polkaKey {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
 	type reqData struct {
 		Event string `json:"event"`
 		Data  struct {
@@ -22,7 +33,7 @@ func (cfg *apiConfig) handlerWebhook(w http.ResponseWriter, req *http.Request) {
 
 	decoder := json.NewDecoder(req.Body)
 	params := reqData{}
-	err := decoder.Decode(&params)
+	err = decoder.Decode(&params)
 	if err != nil {
 		log.Printf("Error decoding parameters: %s", err)
 		respondWithError(w, http.StatusInternalServerError, "Couldn't decode parameters", err)

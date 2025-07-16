@@ -65,9 +65,10 @@ func main() {
 	mux.HandleFunc("POST /api/users", cfg.handlerUsersCreate)
 	mux.HandleFunc("PUT /api/users", cfg.handlerUsersUpdate)
 
+	mux.HandleFunc("POST /api/chirps", cfg.handlerChirpsCreate)
 	mux.HandleFunc("GET /api/chirps", cfg.handlerChirpsList)
 	mux.HandleFunc("GET /api/chirps/{chirpID}", cfg.handlerChirpsGet)
-	mux.HandleFunc("POST /api/chirps", cfg.handlerChirpsCreate)
+	mux.HandleFunc("DELETE /api/chirps/{chirpID}", cfg.handlerChirpsDelete)
 
 	server := &http.Server{
 		Addr:    ":" + port,
